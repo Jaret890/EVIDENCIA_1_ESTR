@@ -79,11 +79,11 @@ def registar_reservacion():
     hoy = datetime.now().date()
     minimo = hoy + timedelta(days=2)
     while True:
-        fecha_str = input(f"Fecha del evento ({FORMATO_FECHA}), minimo {minimo.strftime(FORMATO_FECHA): }")
+        fecha_str = input(f"Fecha del evento ({FORMATO_FECHA}), minimo {minimo.strftime(FORMATO_FECHA)}: ")
         try:
             fecha = datetime.strptime(fecha_str, FORMATO_FECHA).date()
             if fecha < minimo:
-                print("La reservacion debe de ahcerse al menos dos dias antes")
+                print("La reservacion debe de hacerse al menos dos dias antes")
             else:
                 break
         except:
@@ -126,7 +126,7 @@ def registar_reservacion():
         return
     turno = TURNOS[opcion_turno]
     
-    folio = generar_folio
+    folio = generar_folio()
     reservaciones.append(Reservacion(folio, fecha, turno, sala, cliente, nombre_evento))
     print(f"--Reservacion registrada con folio {folio}")
 
@@ -148,14 +148,14 @@ def editar_evento():
     
     seleccionadas = [r for r in reservaciones if fecha_inicio <= r.fecha <= fecha_fin]
     if not seleccionadas:
-        print("--No existen reservacones en ese rango--")
+        print("--No existen reservacines en ese rango--")
         return
     
     while True:
-        print("--Reservaciones en rengo:")
+        print("--Reservaciones en rango:")
         for r in seleccionadas:
-            print(f"Folio: {r.folio}, Evento{r.nombre_evento}, Fecha: {r.fecha.strftime(FORMATO_FECHA)}")
-        folio = input("Folio a editar ('0' para cancelar)")
+            print(f"Folio: {r.folio}, Evento: {r.evento}, Fecha: {r.fecha.strftime(FORMATO_FECHA)}")
+        folio = input("Folio a editar ('0' para cancelar): ")
         if folio == "0":
             return
         res = next((r for r in seleccionadas if r.folio == folio), None)
@@ -185,7 +185,7 @@ def consultar_por_fecha():
         print("--No hay reservaciones en esta fecha--")
         return
     for r in encontrados:
-        print(f"Folio: {r.folio}, Evento: {r.nombre_evonto}, Sala: {r.sala.nombre}, Turno: {r.turno}, Cliente: {r.cliente.nombre} {r.cliente.apllidos}")
+        print(f"Folio: {r.folio}, Evento: {r.evento}, Sala: {r.sala.nombre}, Turno: {r.turno}, Cliente: {r.cliente.nombre} {r.cliente.apellidos}")
 
 def registrar_cliente():
     clave =  clave_cliente()
