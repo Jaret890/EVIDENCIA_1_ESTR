@@ -62,7 +62,7 @@ def registar_reservacion():
 
     ordenados = sorted(clientes, key=lambda c: (c.apellidos.lower(), c.nombre.lower()))
     print("Clientes Registrados: ")
-    print(f"{'Clave:6'} | {'Apellidos:20'} | {'No,bre:15'}")
+    print(f"{'Clave:6'} | {'Apellidos:20'} | {'Nombre:15'}")
     print("-"*50)
     for c in ordenados:
         print(f"{c.clave:6} | {c.apellidos:20} | {c.nombre:15} ") 
