@@ -1,6 +1,9 @@
 from datetime import datetime, timedelta
 import random
-
+import csv
+import json
+from openpyxl import Workbook
+from openpyxl.styles import Font, Alignment, Border, Side
 
 #Listas
 clientes = []
@@ -62,7 +65,7 @@ def registar_reservacion():
 
     ordenados = sorted(clientes, key=lambda c: (c.apellidos.lower(), c.nombre.lower()))
     print("Clientes Registrados: ")
-    print(f"{'Clave:6'} | {'Apellidos:20'} | {'Nombre:15'}")
+    print(f"{'Clave':6} | {'Apellidos':20} | {'Nombre':15}")
     print("-"*50)
     for c in ordenados:
         print(f"{c.clave:6} | {c.apellidos:20} | {c.nombre:15} ") 
@@ -184,8 +187,98 @@ def consultar_por_fecha():
     if not encontrados:
         print("--No hay reservaciones en esta fecha--")
         return
+    print(f"--Reservaciones para {fecha.strftime(FORMATO_FECHA)}")
+    print(f"{'Folio':8} | {'Evento':25} | {'Sala':15} | {'Turno':10} | {'Cliente':20}")
+    print("-" * 85)
     for r in encontrados:
         print(f"Folio: {r.folio}, Evento: {r.evento}, Sala: {r.sala.nombre}, Turno: {r.turno}, Cliente: {r.cliente.nombre} {r.cliente.apellidos}")
+    
+    exportar = input("¿Desea exportar el reporte? (S/N): ").upper()
+    if exportar != "S":
+        return
+    
+    print("--Formatos disponibles--")
+    print("1-CSV")
+    print("2-JSON")
+    print("3-Excel")
+    formato = input("Selecciona el formato deseado (1/2/3): ")
+    
+    if formato == "1":
+        pass
+    elif formato == "2":
+        pass
+    elif formato == "3":
+        pass
+    else:
+        print("--Opcion invalida--")
+
+
+def exportar_csv(datos, fecha):
+    nombre_archivo = f"reporte_{fecha.strftime('%Y%m%d')}.csv"
+    with open(nombre_archivo, mode="w", newline="", encoding="utf-8") as file:
+        writer = csv.writer(file)
+        writer.writerow(["Folio", "Evento", "Sala", "Turno", "Cliente"])
+        for r in datos:
+            writer.writerow([r.folio, r.evento, r.sala.nombre, r.turno, f"{r.cliente.nombre} {r.cliente.apellidos}"])
+    print(f"--Reporte exportado como CSV: {nombre_archivo}--")
+
+
+def exportar_json(datos, fecha):
+    nombre_archivo = f"reporte_{fecha.strftime('%Y%m%d')}.json"
+    data = []
+    for r in datos:
+        data.append({"Folio": r.folio,
+                     "Evento": r.evento,
+                     "Sala": r.sala,
+                     "Turno": r.turno,
+                     "Cliente": f"{r.cliente.nombre} {r.cliente.apellidos}"
+                     })
+        
+    with open(nombre_archivo, "w", encoding="utf-8") as file:
+        json.dump(data, file, ensure_ascii=False, indent=4)
+    print(f"--Reporte exportado como JSON: {nombre_archivo}--")
+
+
+def exportar_excel(datos, fecha):
+    nombre_archivo = f"reporte_{fecha.strfime('%Y%m%d')}.xlsx"
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Reservaciones"
+
+    titulo = f"Reservaciones - {fecha.strftime(FORMATO_FECHA)}"
+    ws.merge_cells("A1:E1")
+    ws["A1"] = titulo
+    ws["A1"].font = Font(size=14, bold=True)
+    ws["A1"].alignment = Alignment(horizontal="center")
+
+    encabezados = ["Folio", "Evento", "Sala", "Turno", "Cliente"]
+    ws.append(encabezados)
+
+    bold_font = Font(bold=True)
+    borde = Border(bottom=Side(style="thick"))
+    centrado = Alignment(horizontal="center")
+
+
+    for columna in range(1,len(encabezados) +1):
+        celda = ws.cell(row=2, column=columna)
+        celda.font = bold_font
+        celda.border = borde
+        celda.alignment = centrado
+    
+    for r in datos:
+        ws.append([r.folio, r.evento, r.sala.nombre, r.turno, f"{r.cliente.nombre} {r.cliente.apellidos}"])
+
+    for row in ws.iter_rows(min_row=3, max_row=ws.max_row, min_col=1, max_col=5):
+        for celda in row:
+            celda.alignment = centrado
+    
+    for col in ws.columns:
+        max_len = max(len(str(celda.value)) if celda.value else 0 for celda in col)
+        ws.column_dimensions[col[0].column_letter].width = max_len + 2
+
+    wb.save(nombre_archivo)
+    print(f"--Reporte exportado como Excel: {nombre_archivo}--")
+
 
 def registrar_cliente():
     clave =  clave_cliente()
