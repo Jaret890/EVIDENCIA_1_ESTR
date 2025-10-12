@@ -2,7 +2,8 @@ from datetime import datetime, timedelta
 import random
 import csv
 import json
-from openpyxl import Workbook
+import os
+from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Font, Alignment, Border, Side
 
 #Listas
@@ -56,6 +57,9 @@ def generar_folio():
 TURNOS = {"1": "Matutino", "2": "Vespertino", "3": "Nocturno"}
 
 FORMATO_FECHA = "%d/%m/%Y"
+ARCHIVO_JSON = "estado_sistema.json"
+ARCHIVO_CSV = "estado_sistema.csv"
+ARCHIVO_XLSX = "estado_sistema.xlsx"
 
 #Funciones
 def registar_reservacion():
@@ -204,11 +208,11 @@ def consultar_por_fecha():
     formato = input("Selecciona el formato deseado (1/2/3): ")
     
     if formato == "1":
-        pass
+        exportar_csv(encontrados, fecha)
     elif formato == "2":
-        pass
+        exportar_json(encontrados, fecha)
     elif formato == "3":
-        pass
+        exportar_excel(encontrados, fecha)
     else:
         print("--Opcion invalida--")
 
@@ -279,6 +283,113 @@ def exportar_excel(datos, fecha):
     wb.save(nombre_archivo)
     print(f"--Reporte exportado como Excel: {nombre_archivo}--")
 
+def guardar_estado():
+    data = {
+        "clientes": [{"clave": c.clave, "nombre": c.nombre, "apellidos": c.apellidos} for c in clientes],
+        "salas": [{"clave": s.clave, "nombre": s.nombre, "cupo": s.cupo} for s in salas],
+        "reservaciones": [{
+            "folio": r.folio,
+            "fecha": r.fecha.strftime(FORMATO_FECHA),
+            "turno": r.turno,
+            "sala": r.sala.clave,
+            "cliente": r.cliente.clave,
+            "evento": r.evento
+        } for r in reservaciones]
+    }
+
+    with open(ARCHIVO_JSON, "w", encoding="utf-8") as f:
+        json.dump(data, f,ensure_ascii=False, indent=4)
+
+
+    with open(ARCHIVO_CSV, "w", newline="", encoding="utf-8") as f:
+        writer = csv.writer(f)
+        writer.writerow(["Tipo", "Clave/Folio", "Nombre/Evento", "Apellidos/Fecha", "Extra1", "Extra2"])
+        for c in clientes:
+            writer.writerow(["Cliente", c.clave, c.nombre, c.apellidos, "", ""])
+        for s in salas:
+            writer.writerow(["Sala", s.clave, s.nombre, "", s.cupo, ""])
+        for r in reservaciones:
+            writer.writerow([
+                "Reservacion", r.folio, r.evento, r.fecha.strftime(FORMATO_FECHA),
+                r.sala.clave, r.cliente.clave
+            ])
+
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Estado"
+    ws.append(["Tipo", "Clave/Folio", "Nombre/Evento", "Apellidos/Fecha", "Extra1", "Extra2"])
+    for c in clientes:
+        ws.append(["Cliente", c.clave, c.nombre, c.apellidos, "", ""])
+    for s in salas:
+        ws.append(["Sala", s.clave, s.nombre, "", s.cupo, ""])
+    for r in reservaciones:
+        ws.append([
+            "Reservacion", r.folio, r.evento, r.fecha.strftime(FORMATO_FECHA),
+            r.sala.clave, r.cliente.clave
+        ])
+    wb.save(ARCHIVO_XLSX)
+
+    print("--Estado guardado correctamente en JSON, CSV y Excel--")
+
+def cargar_estado():
+    encontrado = False
+    
+    if os.path.exists(ARCHIVO_JSON):
+        with open(ARCHIVO_JSON, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        for c in data.get("clientes", []):
+            clientes.append(Cliente(c["clave"], c["nombre"], c["apellidos"]))
+        for s in data.get("salas", []):
+            salas.append(Sala(s["clave"], s["nombre"], s["cupo"]))
+        for r in data.get("reservaciones", []):
+            cliente = next ((x for x in clientes if x.clave == r["cliente"]), None)
+            sala = next((x for x in salas if x.clave == r["sala"]), None)
+            fecha = datetime.strptime(r["fecha"], FORMATO_FECHA).date()
+            reservaciones.append(Reservacion(r["folio"], fecha, r["turno"], sala, cliente, r["evento"]))
+        print("--Estado anterior recuperado desde JSON--")
+        encontrado = True
+
+
+    elif os.path.exists(ARCHIVO_CSV):
+        with open(ARCHIVO_CSV, "r", encoding="utf-8") as f:
+            reader = csv.reader(f)
+            next(reader)
+            for row in reader:
+                tipo = row[0]
+                if tipo == "Cliente":
+                    clientes.append(Cliente(row[1], row[2], row[3]))
+                elif tipo == "Sala":
+                    salas.append(Sala(row[1], row[2], int(row[4])))
+                elif tipo == "Reservacion":
+                    sala = next((x for x in salas if x.clave == row[4]), None)
+                    cliente = next((x for x in clientes if x.clave == row[5]), None)
+                    fecha = datetime.strptime(row[3], FORMATO_FECHA).date()
+                    reservaciones.append(Reservacion(row[1], fecha, "Desconocido", sala, cliente, row[2]))
+        print("--Estado anterior recuperado desde CSV--")
+        encontrado = True
+
+
+    elif os.path.exists(ARCHIVO_XLSX):
+        wb = load_workbook(ARCHIVO_XLSX)
+        ws = wb.active
+        for row in ws.iter_rows(min_row=2, values_only=True):
+            tipo = row[0]
+            if tipo == "Cliente":
+                clientes.append(Cliente(row[1], row[2], row[3]))
+            elif tipo == "Sala":
+                salas.append(Sala(row[1], row[2], int(row[4])))
+            elif tipo == "Reservacion":
+                sala = next((x for x in salas if x.clave == row[4]), None)
+                cliente = next((x for x in clientes if x.clave == row[5]), None)
+                fecha = datetime.strptime(row[3], FORMATO_FECHA).date()
+                reservaciones.append(Reservacion(row[1], fecha, "Desconocido", sala, cliente, row[2]))
+        print("--Estado anterior recuperado desde Excel--")
+        encontrado = True
+
+    if not encontrado:
+        print("--No se encontró un estado anterior. Iniciando con datos vacíos--")
+
 
 def registrar_cliente():
     clave =  clave_cliente()
@@ -294,30 +405,35 @@ def registrar_sala():
     salas.append(Sala(clave, nombre, cupo))
     print(f"--Sala registrada con clave {clave}--")
      
-
-    
+ 
 
 #Menu
-while True:
-    print("--Menu de Reservas--")
-    print("1.-Registrar reservacion de sala")
-    print("2.-Editar el nombre del evento de una reservacion ya hecha")
-    print("3.-Consultar las reservaciones por una fecha en especifico")
-    print("4.-Registrar un nuevo cliente")
-    print("5.-Registrar un sala")
-    print("6.-Salir")
-    opcion = int(input("--Elige una opcion: "))
+def menu():
+    while True:
+        print("--Menu de Reservas--")
+        print("1.-Registrar reservacion de sala")
+        print("2.-Editar el nombre del evento de una reservacion ya hecha")
+        print("3.-Consultar las reservaciones por una fecha en especifico")
+        print("4.-Registrar un nuevo cliente")
+        print("5.-Registrar un sala")
+        print("6.-Salir")
+        opcion = int(input("--Elige una opcion: "))
 
-    if opcion == 1:
-        registar_reservacion()
-    elif opcion == 2:
-        editar_evento()
-    elif opcion == 3:
-        consultar_por_fecha()
-    elif opcion == 4:
-        registrar_cliente()
-    elif opcion == 5:
-        registrar_sala()
-    elif opcion == 6:
-        print("--Adios--")
-        break
+        if opcion == 1:
+            registar_reservacion()
+        elif opcion == 2:
+            editar_evento()
+        elif opcion == 3:
+            consultar_por_fecha()
+        elif opcion == 4:
+            registrar_cliente()
+        elif opcion == 5:
+            registrar_sala()
+        elif opcion == 6:
+            print("--Adios--")
+            break
+
+if __name__ == "__main__":
+    cargar_estado()
+    menu()
+    guardar_estado()
