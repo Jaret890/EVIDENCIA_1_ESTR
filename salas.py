@@ -233,9 +233,9 @@ def exportar_json(datos, fecha):
     for r in datos:
         data.append({"Folio": r.folio,
                      "Evento": r.evento,
-                     "Sala": r.sala,
+                     "Sala": r.sala.nombre if r.sala else "N/A",
                      "Turno": r.turno,
-                     "Cliente": f"{r.cliente.nombre} {r.cliente.apellidos}"
+                     "Cliente": f"{r.cliente.nombre} {r.cliente.apellidos}" if r.cliente else "N/A"
                      })
         
     with open(nombre_archivo, "w", encoding="utf-8") as file:
@@ -430,8 +430,12 @@ def menu():
         elif opcion == 5:
             registrar_sala()
         elif opcion == 6:
-            print("--Adios--")
-            break
+            seguro = input("--Realmente desea salir (S/N)").upper()
+            if seguro == "S":
+                print("--Adios--")
+                break
+            else:
+                return
 
 if __name__ == "__main__":
     cargar_estado()
